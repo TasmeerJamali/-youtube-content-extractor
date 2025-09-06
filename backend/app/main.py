@@ -5,11 +5,13 @@ Main FastAPI application for YouTube Content Extractor.
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 from app.core.config import get_settings
@@ -83,16 +85,39 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 # Add API router
 app.include_router(api_router, prefix="/api/v1")
 
+# Serve static files (frontend) in production
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    
+    # Serve index.html for all non-API routes (SPA routing)
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Serve the React SPA for all non-API routes."""
+        # Don't serve SPA for API routes
+        if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("redoc"):
+            return {"error": "Not found"}
+        
+        from fastapi.responses import FileResponse
+        return FileResponse(str(static_dir / "index.html"))
+
 
 @app.get("/")
 async def root():
-    """Root endpoint with basic information."""
-    return {
-        "message": "YouTube Content Extractor API",
-        "version": "1.0.0",
-        "status": "running",
-        "docs": "/docs"
-    }
+    """Root endpoint - serve frontend or API info."""
+    static_dir = Path(__file__).parent / "static"
+    if static_dir.exists():
+        # Serve frontend in production
+        from fastapi.responses import FileResponse
+        return FileResponse(str(static_dir / "index.html"))
+    else:
+        # API info in development
+        return {
+            "message": "YouTube Content Extractor API",
+            "version": "1.0.0",
+            "status": "running",
+            "docs": "/docs"
+        }
 
 
 @app.get("/health")
