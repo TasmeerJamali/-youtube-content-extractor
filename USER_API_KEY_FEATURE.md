@@ -1,6 +1,6 @@
 # User API Key Management Feature
 
-## 🎯 Overview
+## 🎯 Overview.
 
 Your YouTube Content Extractor now supports **user-provided API keys** while keeping your default API key as a fallback. This ensures scalability and gives users unlimited quota options.
 
